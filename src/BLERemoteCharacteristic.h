@@ -28,7 +28,6 @@ public:
 class BLERemoteService;
 class BLERemoteDescriptor;
 
-
 /**
  * @brief A model of a remote %BLE characteristic.
  */
