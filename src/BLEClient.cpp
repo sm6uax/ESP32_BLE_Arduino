@@ -44,12 +44,13 @@
  */
 static const char* LOG_TAG = "BLEClient";
 
-BLEClient::BLEClient() {
+BLEClient::BLEClient(uint16_t appId) {
 	m_pClientCallbacks = nullptr;
 	m_conn_id          = 0;
 	m_gattc_if         = 0;
 	m_haveServices     = false;
 	m_isConnected      = false;  // Initially, we are flagged as not connected.
+	m_app_id = appId;
 } // BLEClient
 
 
@@ -96,7 +97,7 @@ bool BLEClient::connect(BLEAddress address) {
 
 	clearServices(); // Delete any services that may exist.
 
-	esp_err_t errRc = ::esp_ble_gattc_app_register(0);
+	esp_err_t errRc = ::esp_ble_gattc_app_register(m_app_id);
 	if (errRc != ESP_OK) {
 		ESP_LOGE(LOG_TAG, "esp_ble_gattc_app_register: rc=%d %s", errRc, GeneralUtils::errorToString(errRc));
 		return false;
@@ -216,7 +217,7 @@ void BLEClient::gattClientEventHandler(
 		// - uint16_t          conn_id
 		//
 		case ESP_GATTC_SEARCH_CMPL_EVT: {
-			m_semaphoreSearchCmplEvt.give(0);
+			m_semaphoreSearchCmplEvt.give();
 			break;
 		} // ESP_GATTC_SEARCH_CMPL_EVT
 
@@ -369,8 +370,13 @@ std::map<std::string, BLERemoteService*>* BLEClient::getServices() {
 		ESP_LOGE(LOG_TAG, "esp_ble_gattc_search_service: rc=%d %s", errRc, GeneralUtils::errorToString(errRc));
 		return &m_servicesMap;
 	}
-	// If sucessfull, remember that we now have services.
-	m_haveServices = (m_semaphoreSearchCmplEvt.wait("getServices") == 0);
+	m_semaphoreSearchCmplEvt.take(1000,"getServices"); // Per 2018-06-15 Prevent endless loops
+	if (errRc != ESP_OK) {
+		ESP_LOGE(LOG_TAG, "esp_ble_gattc_search_service: rc=%d %s", errRc, GeneralUtils::errorToString(errRc));
+		return &m_servicesMap;
+	}
+	m_semaphoreSearchCmplEvt.wait("getServices");
+	m_haveServices = true; // Remember that we now have services.
 	ESP_LOGD(LOG_TAG, "<< getServices");
 	return &m_servicesMap;
 } // getServices
@@ -389,7 +395,9 @@ std::string BLEClient::getValue(BLEUUID serviceUUID, BLEUUID characteristicUUID)
 	return ret;
 } // getValue
 
-
+void BLEClient::resetgetService() {
+	m_semaphoreSearchCmplEvt.give(); // Per 2018-06-15 Prevent endless loops
+} // resetgetService
 /**
  * @brief Handle a received GAP event.
  *

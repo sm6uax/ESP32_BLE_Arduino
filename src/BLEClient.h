@@ -28,7 +28,7 @@ class BLEClientCallbacks;
  */
 class BLEClient {
 public:
-	BLEClient();
+	BLEClient(uint16_t appId);
 	~BLEClient();
 
 	bool                                       connect(BLEAddress address);   // Connect to the remote BLE Server
@@ -36,6 +36,7 @@ public:
 	BLEAddress                                 getPeerAddress();              // Get the address of the remote BLE Server
 	int                                        getRssi();                     // Get the RSSI of the remote BLE Server
 	std::map<std::string, BLERemoteService*>*  getServices();                 // Get a map of the services offered by the remote BLE Server
+	void									   resetgetService();
 	BLERemoteService*                          getService(const char* uuid);  // Get a reference to a specified service offered by the remote BLE server.
 	BLERemoteService*                          getService(BLEUUID uuid);      // Get a reference to a specified service offered by the remote BLE server.
 	std::string                                getValue(BLEUUID serviceUUID, BLEUUID characteristicUUID);   // Get the value of a given characteristic at a given service.
@@ -72,6 +73,7 @@ private:
 	esp_gatt_if_t m_gattc_if;
 	bool          m_haveServices;    // Have we previously obtain the set of services from the remote server.
 	bool          m_isConnected;     // Are we currently connected.
+	uint16_t	m_app_id;
 
 	BLEClientCallbacks* m_pClientCallbacks;
 	FreeRTOS::Semaphore m_semaphoreRegEvt        = FreeRTOS::Semaphore("RegEvt");
